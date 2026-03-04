@@ -123,7 +123,7 @@ def train_model(
         num_train_epochs=num_epochs,
         per_device_train_batch_size=batch_size,
         per_device_eval_batch_size=batch_size,
-        warmup_steps=100,
+        warmup_ratio=0.05,  # original: warmup_steps=100
         weight_decay=0.01,
         logging_dir="./logs",
         logging_steps=eval_step,
@@ -131,8 +131,9 @@ def train_model(
         save_total_limit=2,
         push_to_hub=push_to_hub,
         hub_model_id=hub_model_id,
-        gradient_accumulation_steps=16,
-        fp16=True,
+        gradient_accumulation_steps=4,  # original: 16
+        fp16=False, # original: True
+        bf16=True,  # original: not exists
         learning_rate=learning_rate,
         hub_token=hf_token,
     )
