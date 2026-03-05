@@ -84,18 +84,25 @@ def train_model(
 
     dataset = load_dataset(data_path)
 
+    def format_example(example):
+        chat_messages = []
+        for msg in example.get("messages", []):
+            role = msg["role"]
+            if role == "assistant":
+                reasoning = msg.get("reasoning_content", "").strip()
+                content = msg.get("content", "").strip()
+                body = f"{reasoning}\n\n{content}"
+                full_content = f"{invocation_string}\n{body}"
+                chat_messages.append({"role": "assistant", "content": full_content})
+            elif role == "user":
+                content = msg.get("content", "")
+                chat_messages.append({"role": role, "content": content})
+            else:
+                chat_messages.append({"role": role, "content": msg.get("content", "")})
+        return tokenizer.apply_chat_template(chat_messages, tokenize=False, add_generation_prompt=False)
+
     def tokenize_function(examples):
-        formatted_texts = [
-            tokenizer.apply_chat_template(
-                [
-                    {"role": "user", "content": user_msg},
-                    {"role": "assistant", "content": assistant_msg},
-                ],
-                tokenize=False,  # get plain text first
-                add_generation_prompt=False,
-            )
-            for user_msg, assistant_msg in zip(examples["input"], examples["output"])
-        ]
+        formatted_texts = [format_example({"messages": messages}) for messages in examples["messages"]]
 
         # 2) Tokenize those texts
         model_inputs = tokenizer(
@@ -172,7 +179,7 @@ def model_inference(model_path: str, adapter_path: str, prompt: str = None, data
     if prompt is None:
         # Use first row of test data
         dataset = load_dataset(data_path)
-        prompt = dataset["test"][0]["input"]
+        prompt = next(msg["content"] for msg in dataset["test"][0]["messages"] if msg["role"] == "user")
     tokenizer = AutoTokenizer.from_pretrained(model_path)
     base_model = AutoModelForCausalLM.from_pretrained(model_path)
     alora_model = PeftModel.from_pretrained(base_model, adapter_path)
