@@ -16,7 +16,8 @@ from peft import LoraConfig, PeftModel, get_peft_model, prepare_model_for_kbit_t
 
 def train_model(
     base_model: str,
-    data_path: str,
+    train_data_path: str,
+    test_data_path: str,
     output_dir: str,
     batch_size: int,
     num_epochs: int,
@@ -82,7 +83,8 @@ def train_model(
     model.to(device)
     tokenizer.pad_token = tokenizer.eos_token
 
-    dataset = load_dataset(data_path)
+    train_dataset = load_dataset("json", data_files=train_data_path, split="train")
+    test_dataset = load_dataset("json", data_files=test_data_path, split="train")
 
     def format_example(example):
         chat_messages = []
@@ -120,7 +122,8 @@ def train_model(
         return model_inputs
 
     # Tokenize the dataset and prepare for training
-    tokenized_datasets = dataset.map(tokenize_function, batched=True, remove_columns=dataset["train"].column_names)
+    tokenized_train = train_dataset.map(tokenize_function, batched=True, remove_columns=train_dataset.column_names)
+    tokenized_test = test_dataset.map(tokenize_function, batched=True, remove_columns=test_dataset.column_names)
 
     # Data collator to dynamically pad the batched examples
     data_collator = DataCollatorForLanguageModeling(tokenizer, mlm=False)
@@ -153,8 +156,8 @@ def train_model(
     trainer = Trainer(
         model=model,
         args=training_args,
-        train_dataset=tokenized_datasets["train"],
-        eval_dataset=tokenized_datasets["test"],
+        train_dataset=tokenized_train,
+        eval_dataset=tokenized_test,
         data_collator=data_collator,
     )
 
@@ -178,8 +181,8 @@ def model_inference(model_path: str, adapter_path: str, prompt: str = None, data
     """
     if prompt is None:
         # Use first row of test data
-        dataset = load_dataset(data_path)
-        prompt = next(msg["content"] for msg in dataset["test"][0]["messages"] if msg["role"] == "user")
+        dataset = load_dataset("json", data_files=data_path, split="train")
+        prompt = next(msg["content"] for msg in dataset[0]["messages"] if msg["role"] == "user")
     tokenizer = AutoTokenizer.from_pretrained(model_path)
     base_model = AutoModelForCausalLM.from_pretrained(model_path)
     alora_model = PeftModel.from_pretrained(base_model, adapter_path)
@@ -204,12 +207,8 @@ if __name__ == "__main__":
     parser.add_argument(
         "--base_model", type=str, default="mistralai/Mistral-7B-Instruct-v0.3", help="Base model path or name"
     )
-    parser.add_argument(
-        "--data_path",
-        type=str,
-        default="Lots-of-LoRAs/task1660_super_glue_question_generation",
-        help="Dataset path or name",
-    )
+    parser.add_argument("--train_data_path", type=str, required=True, help="Path to training data file")
+    parser.add_argument("--test_data_path", type=str, required=True, help="Path to test data file")
     parser.add_argument(
         "--output_dir", type=str, default="path/to/output", help="Output directory for the fine-tuned model"
     )
@@ -244,7 +243,8 @@ if __name__ == "__main__":
     args = parser.parse_args()
     train_model(
         base_model=args.base_model,
-        data_path=args.data_path,
+        train_data_path=args.train_data_path,
+        test_data_path=args.test_data_path,
         output_dir=args.output_dir,
         batch_size=args.batch_size,
         num_epochs=args.num_epochs,
@@ -264,4 +264,4 @@ if __name__ == "__main__":
         push_to_hub=args.push_to_hub,
     )
     print("Model trained. Running test inference.")
-    model_inference(model_path=args.base_model, adapter_path=args.output_dir, data_path=args.data_path)
+    model_inference(model_path=args.base_model, adapter_path=args.output_dir, data_path=args.test_data_path)
