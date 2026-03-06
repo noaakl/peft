@@ -83,7 +83,7 @@ def train_model(
     model.to(device)
     tokenizer.pad_token = tokenizer.eos_token
 
-    train_dataset = load_dataset("json", data_files=train_data_path, split="train")
+    train_dataset = load_dataset(train_data_path, split="train")
     test_dataset = load_dataset("json", data_files=test_data_path, split="train")
 
     def format_example(example):
