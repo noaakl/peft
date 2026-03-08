@@ -1,7 +1,8 @@
+import json
 import os
 
 import torch
-from datasets import load_dataset
+from datasets import Dataset, load_dataset
 from transformers import (
     AutoModelForCausalLM,
     AutoTokenizer,
@@ -82,7 +83,16 @@ def train_model(
     model.to(device)
     tokenizer.pad_token = tokenizer.eos_token
 
-    train_dataset = load_dataset("json", data_dir=train_data_path, split="train")
+    records = []
+    for fname in sorted(os.listdir(train_data_path)):
+        if fname.endswith((".json", ".jsonl")):
+            with open(os.path.join(train_data_path, fname)) as f:
+                for line in f:
+                    line = line.strip()
+                    if line:
+                        records.append({"messages": json.loads(line)["messages"]})
+    train_dataset = Dataset.from_list(records)
+    print("First training example:", train_dataset[0])
 
     def format_example(example):
         chat_messages = []
@@ -100,6 +110,8 @@ def train_model(
             else:
                 chat_messages.append({"role": role, "content": msg.get("content", "")})
         return tokenizer.apply_chat_template(chat_messages, tokenize=False, add_generation_prompt=False)
+
+    print("First example after format_example:", format_example(train_dataset[0]))
 
     def tokenize_function(examples):
         formatted_texts = [format_example({"messages": messages}) for messages in examples["messages"]]
