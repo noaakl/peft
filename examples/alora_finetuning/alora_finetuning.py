@@ -139,7 +139,7 @@ def train_model(
         save_total_limit=2,
         push_to_hub=push_to_hub,
         hub_model_id=hub_model_id,
-        gradient_accumulation_steps=5,  # original: 16
+        gradient_accumulation_steps=16,  # original: 16
         fp16=False, # original: True
         bf16=True,  # original: not exists
         learning_rate=learning_rate,
