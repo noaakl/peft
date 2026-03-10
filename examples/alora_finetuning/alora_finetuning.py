@@ -86,14 +86,19 @@ def train_model(
 
     def format_example(example):
         chat_messages = []
+        printed = False
         for msg in example.get("messages", []):
             role = msg["role"]
             if role == "assistant":
-                reasoning = msg.get("reasoning_content", "").strip()
+                # reasoning = msg.get("reasoning_content", "").strip()
                 content = msg.get("content", "").strip()
-                body = f"{reasoning}\n\n{content}"
+                # body = f"{reasoning}\n\n{content}"
+                body = content
                 full_content = f"{invocation_string}\n{body}"
                 chat_messages.append({"role": "assistant", "content": full_content})
+                if not printed:
+                    print(chat_messages)
+                    printed = True
             elif role == "user":
                 content = msg.get("content", "")
                 chat_messages.append({"role": role, "content": content})
