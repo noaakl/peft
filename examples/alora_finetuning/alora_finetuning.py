@@ -105,6 +105,7 @@ def train_model(
 
     def tokenize_function(examples):
         formatted_texts = [format_example({"messages": messages}) for messages in examples["messages"]]
+        print(f"formatted_texts: {formatted_texts[0]}")
 
         # 2) Tokenize those texts
         model_inputs = tokenizer(
