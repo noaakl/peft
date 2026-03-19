@@ -72,10 +72,11 @@ def train_model(
         alora_invocation_tokens=invocation_tokens,
         r=lora_r,
         lora_alpha=lora_alpha,
-        target_modules=(lora_target_modules.split(",") if lora_target_modules else ["q_proj", "k_proj", "v_proj"]),
+        target_modules=(lora_target_modules.split(",") if lora_target_modules else "all-linear"),
         lora_dropout=lora_dropout,
         bias="none",
     )
+    print(f"""lora_target_modules: {lora_target_modules.split(",") if lora_target_modules else "all-linear"}""")
 
     model = get_peft_model(model, lora_config)
 
@@ -86,7 +87,6 @@ def train_model(
 
     def format_example(example):
         chat_messages = []
-        printed = False
         for msg in example.get("messages", []):
             role = msg["role"]
             if role == "assistant":
@@ -96,9 +96,6 @@ def train_model(
                 body = content
                 full_content = f"{invocation_string}\n{body}"
                 chat_messages.append({"role": "assistant", "content": full_content})
-                if not printed:
-                    print(chat_messages)
-                    printed = True
             elif role == "user":
                 content = msg.get("content", "")
                 chat_messages.append({"role": role, "content": content})
